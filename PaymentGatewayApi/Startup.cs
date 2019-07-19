@@ -1,17 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using PaymentGatewayApi.Api;
 using PaymentGatewayApi.Logging;
+using PaymentGatewayApi.Mapper;
 using PaymentGatewayApi.Service;
 using Polly;
 
@@ -30,6 +25,7 @@ namespace PaymentGatewayApi
         {
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
             services.AddLogging();
+            services.AddSingleton<IBankPaymentMapper, BankPaymentMapper>();
             services.AddSingleton<IApplicationLogger, ApplicationLogger>();
             services.AddHttpClient<IBankApiClient, BankApiClient>(client =>
             {

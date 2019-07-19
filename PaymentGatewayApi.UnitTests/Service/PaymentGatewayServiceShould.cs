@@ -4,6 +4,7 @@ using Moq;
 using PaymentGatewayApi.Api;
 using PaymentGatewayApi.Api.Dto;
 using PaymentGatewayApi.Logging;
+using PaymentGatewayApi.Mapper;
 using PaymentGatewayApi.Model;
 using PaymentGatewayApi.Service;
 using Xunit;
@@ -13,6 +14,7 @@ namespace PaymentGatewayApi.UnitTests.Service
     public class PaymentGatewayServiceShould
     {
         private Mock<IBankApiClient> bankApiMock;
+        private Mock<IBankPaymentMapper> bankPaymentMapperMock;
         private PaymentRequest paymentRequest;
         private PaymentGatewayService paymentGatewayService;
         private Guid paymentReference;
@@ -27,11 +29,20 @@ namespace PaymentGatewayApi.UnitTests.Service
             bankApiMock = new Mock<IBankApiClient>();
             var bankPaymentDetail = new BankPaymentDetail(paymentReference, "Accepted", "4485063526474709", "01/20", 20.00m, "GBP", 123);
             var bankPaymentResponse = new BankPaymentResponse(paymentReference, "Accepted");
+            var paymentResponse = new PaymentResponse(paymentReference, "Accepted");
+            var paymentDetail = new PaymentDetail(paymentReference, "Accepted", "4***********4709", "01/20", 20.00m, "GBP", 123);
+            
             bankApiMock.Setup(service => service.Process(It.IsAny<BankPaymentRequest>()))
                 .Returns(Task.FromResult(bankPaymentResponse));
             bankApiMock.Setup(service => service.GetPaymentDetail(paymentReference)).Returns(Task.FromResult(bankPaymentDetail));
+            bankPaymentMapperMock = new Mock<IBankPaymentMapper>();
+            bankPaymentMapperMock.Setup(mapper => mapper.MapRequest(It.IsAny<PaymentRequest>())).Returns(bankPaymentRequest);
+            bankPaymentMapperMock.Setup(mapper => mapper.MapResponse(It.IsAny<BankPaymentResponse>()))
+                .Returns(paymentResponse);
+            bankPaymentMapperMock.Setup(mapper => mapper.MapDetail(It.IsAny<BankPaymentDetail>()))
+                .Returns(paymentDetail);
             applicationLoggerMock = new Mock<IApplicationLogger>();
-            paymentGatewayService = new PaymentGatewayService(bankApiMock.Object, applicationLoggerMock.Object);
+            paymentGatewayService = new PaymentGatewayService(bankApiMock.Object, bankPaymentMapperMock.Object, applicationLoggerMock.Object);
         }
 
         [Fact]
@@ -84,6 +95,9 @@ namespace PaymentGatewayApi.UnitTests.Service
             var bankPaymentResponse = new BankPaymentResponse(paymentReference, "Declined");
             bankApiMock.Setup(service => service.Process(It.IsAny<BankPaymentRequest>()))
                 .Returns(Task.FromResult(bankPaymentResponse));
+            var unsuccessfulPaymentResponse = new PaymentResponse(paymentReference, "Declined");
+            bankPaymentMapperMock.Setup(mapper => mapper.MapResponse(It.IsAny<BankPaymentResponse>()))
+                .Returns(unsuccessfulPaymentResponse);
 
             // Act
             var response = await paymentGatewayService.SendPayment(paymentRequest);
@@ -91,6 +105,27 @@ namespace PaymentGatewayApi.UnitTests.Service
             // Assert
             Assert.IsType<PaymentResponse>(response);
             Assert.Equal("Declined", response.Status);
+        }
+
+        [Fact]
+        public async Task Call_BankPaymentMapper_When_Sending_PaymentRequest()
+        {
+            // Act
+            var response = await paymentGatewayService.SendPayment(paymentRequest);
+
+            // Assert
+            bankPaymentMapperMock.Verify(mapper => mapper.MapRequest(It.IsAny<PaymentRequest>()), Times.Once);
+            bankPaymentMapperMock.Verify(mapper => mapper.MapResponse(It.IsAny<BankPaymentResponse>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task Call_BankPaymentMapper_When_Getting_PaymentDetail()
+        {
+            // Act
+            var response = await paymentGatewayService.GetPaymentDetail(paymentReference);
+
+            // Assert
+            bankPaymentMapperMock.Verify(mapper => mapper.MapDetail(It.IsAny<BankPaymentDetail>()), Times.Once);
         }
 
         [Fact]
@@ -104,17 +139,13 @@ namespace PaymentGatewayApi.UnitTests.Service
         }
 
         [Fact]
-        public async Task Return_PaymentDetails_With_Masked_CardNumer_When_Retrieiving_PaymentDetails()
+        public async Task Return_PaymentDetail_When_Retrieiving_PaymentDetail()
         {
-            // Arrange
-            var maskedCardNumber = "4***********4709";
-
             // Act
             var paymentDetail = await paymentGatewayService.GetPaymentDetail(paymentReference);
 
             // Assert
             Assert.IsType<PaymentDetail>(paymentDetail);
-            Assert.Equal(maskedCardNumber, paymentDetail.CardNumber);
         }
 
         [Fact]

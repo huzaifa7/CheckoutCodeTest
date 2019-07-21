@@ -5,8 +5,9 @@ Contents
 
 [1: Overview](#1-overview)
 [2: Setup](#2-setup)
-[3: Usage](#2-usage)
-[4: Improvements](#2-improvements)
+[3: Usage](#3-usage)
+[4: Assumptions](#4-assumptions)
+[5: Improvements](#5-improvements)
 
 
 1: Overview
@@ -24,7 +25,7 @@ Build a payment gateway and simulate the acquiring bank component in order to al
 2: Setup
 =============================================
 
-The Solution comes with a set of component tests to run againt the payment gateway api.
+The solution includes a set of component tests that verify the behavior of the payment gateway api.
 In order to run these tests: 
 1.  Press `F5` to start up the PaymentGatewayApi and the BankApiStub.
 
@@ -88,7 +89,13 @@ public PaymentDetail(Guid paymentReference, string status, string cardNumber, st
 ```
 
 
-4: Improvments
+4: Assumptions
+=============================================
+The Payment Gateway Api is returning a OK response for both successful and unsuccessful statuses from the bank api stub.
+The reason for this is that the the payment gateway service has managed to process the request successfully, it's just the outcome of the request was either *ACCEPTED* or *DECLINED*
+
+
+5: Improvments
 =============================================
 
 Here are the following suggestions for improvemnts:
